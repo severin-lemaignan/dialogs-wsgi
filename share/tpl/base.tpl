@@ -15,8 +15,9 @@ Naive Natural Language processing
 
 <p>
 <form>
-<input type="text" name="s" value="{{ suggestion }}"/>
-<input type="submit" value="Tell me!"/>
+Type some sentence(s):<br/>
+<textarea name="s" cols="40">{{ suggestion }}</textarea><br/>
+<input type="submit" value="What about that?"/>
 </form>
 </p>
 
