@@ -1,0 +1,73 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
+import logging; logger = logging.getLogger("dialogs")
+FORMAT = '%(asctime)s - %(levelname)s: %(message)s'
+logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+
+import time
+from itertools import imap
+
+from cgi import escape
+import sys, os
+from flup.server.fcgi import WSGIServer
+import urlparse
+
+from dialogs.resources_manager import ResourcePool
+from dialogs.parsing.parser import Parser
+import dialogs.helpers.printers
+dialogs.helpers.printers.DEFAULT_OUTPUT_MODE="css"
+
+from jinja2 import Environment, FileSystemLoader
+
+PREFIX="/var/www/dialogs-wsgi"
+
+env = Environment(loader=FileSystemLoader(PREFIX + "/share/tpl"))
+tpl = env.get_template('base.tpl')
+
+ResourcePool().init()
+parser = Parser()
+
+def fixencoding(s):
+     return s.encode("utf-8")
+
+def process_dialogs(path, options):
+
+    logger.info("Options: %s" % options)
+
+    input = options.get("s", None)
+
+    if not input:
+	return ["You must pass a sentence to process\n"]
+
+    logger.info("Processing sentence <%s>" % input)
+
+    res = []
+    preprocessed_sentences = parser.preprocess(input[0], None)
+    res.append("Pre-processing: %s" % preprocessed_sentences)
+
+    parsed_sentences = parser.parse(preprocessed_sentences, None)
+
+    for s in parsed_sentences:
+	res.append(str(s))
+
+    #return imap(fixencoding, tpl.generate(title = title, path = path, dirs = dirs, hasimgs = (len(imgs) > 0), imgs = imgs[start:end], recents = recents, counter = end))
+    #return res
+    return imap(fixencoding, tpl.generate(preprocessed_sentences = preprocessed_sentences, parsed_sentences = [str(s) for s in parsed_sentences]))
+
+def app(environ, start_response):
+
+    start_response('200 OK', [('Content-Type', 'text/html')])
+
+    path = environ["PATH_INFO"].decode("utf-8")
+
+    options = urlparse.parse_qs(environ["QUERY_STRING"])
+
+
+    return process_dialogs(path, options)
+
+if __name__ == '__main__':
+    logger.info("Starting to serve...")
+    #WSGIServer(app, bindAddress = ("127.0.0.1", 8080)).run()
+    #WSGIServer(app, bindAddress = "/var/www/dialogs/fcgi.sock").run()
+    WSGIServer(app).run()
