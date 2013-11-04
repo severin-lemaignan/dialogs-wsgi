@@ -7,6 +7,7 @@ logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
 import time
 from itertools import imap
+import random
 
 from cgi import escape
 import sys, os
@@ -28,6 +29,9 @@ tpl = env.get_template('base.tpl')
 ResourcePool().init()
 parser = Parser()
 
+with open(PREFIX + "/share/corpus", 'r') as f:
+    corpus = list(f)
+
 def fixencoding(s):
      return s.encode("utf-8")
 
@@ -37,23 +41,14 @@ def process_dialogs(path, options):
 
     input = options.get("s", None)
 
-    if not input:
-	return ["You must pass a sentence to process\n"]
+    preprocessed_sentences = []
+    parsed_sentences = []
+    if input:
+        logger.info("Processing sentence <%s>" % input)
+        preprocessed_sentences = parser.preprocess(input[0], None)
+        parsed_sentences = parser.parse(preprocessed_sentences, None)
 
-    logger.info("Processing sentence <%s>" % input)
-
-    res = []
-    preprocessed_sentences = parser.preprocess(input[0], None)
-    res.append("Pre-processing: %s" % preprocessed_sentences)
-
-    parsed_sentences = parser.parse(preprocessed_sentences, None)
-
-    for s in parsed_sentences:
-	res.append(str(s))
-
-    #return imap(fixencoding, tpl.generate(title = title, path = path, dirs = dirs, hasimgs = (len(imgs) > 0), imgs = imgs[start:end], recents = recents, counter = end))
-    #return res
-    return imap(fixencoding, tpl.generate(preprocessed_sentences = preprocessed_sentences, parsed_sentences = [str(s) for s in parsed_sentences]))
+    return imap(fixencoding, tpl.generate(suggestion = random.choice(corpus), preprocessed_sentences = preprocessed_sentences, parsed_sentences = [str(s) for s in parsed_sentences]))
 
 def app(environ, start_response):
 
@@ -65,6 +60,7 @@ def app(environ, start_response):
 
 
     return process_dialogs(path, options)
+
 
 if __name__ == '__main__':
     logger.info("Starting to serve...")
